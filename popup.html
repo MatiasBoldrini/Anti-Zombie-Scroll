@@ -1,160 +1,227 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Anti Zombie Scroll</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600&display=swap"
+    rel="stylesheet">
   <style>
-    body {
-      width: 320px;
-      min-height: 400px;
+    * {
       margin: 0;
-      padding: 20px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 350px;
+      min-height: 450px;
+      font-family: 'Be Vietnam Pro', sans-serif;
+      background: #2a2a2a;
+      color: #e5e5e5;
+      overflow-x: hidden;
     }
 
     .header {
-      text-align: center;
-      margin-bottom: 30px;
+      background: #1e1e1e;
+      padding: 20px;
+      border-bottom: 1px solid #404040;
     }
 
     .header h1 {
-      margin: 0;
-      font-size: 24px;
+      font-size: 20px;
       font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 4px;
     }
 
     .header p {
-      margin: 8px 0 0 0;
-      opacity: 0.9;
-      font-size: 14px;
+      font-size: 13px;
+      color: #b0b0b0;
+      font-weight: 400;
     }
 
-    .status-card {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
+    .controls {
       padding: 20px;
-      margin-bottom: 20px;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
-    .site-status {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 15px;
+    .platform-section {
+      margin-bottom: 24px;
     }
 
-    .site-status:last-child {
+    .platform-section:last-child {
       margin-bottom: 0;
     }
 
-    .site-name {
-      font-weight: 500;
+    .platform-title {
       font-size: 16px;
-    }
-
-    .status-indicator {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: #4ade80;
-      box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
-    }
-
-    .features {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 20px;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .features h3 {
-      margin: 0 0 15px 0;
-      font-size: 18px;
       font-weight: 600;
-    }
-
-    .feature-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    .feature-list li {
-      padding: 8px 0;
-      font-size: 14px;
-      opacity: 0.9;
+      color: #ffffff;
+      margin-bottom: 12px;
       display: flex;
       align-items: center;
+      gap: 8px;
     }
 
-    .feature-list li::before {
-      content: "✓";
-      color: #4ade80;
-      font-weight: bold;
-      margin-right: 10px;
+    .platform-icon {
+      font-size: 18px;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #404040;
+    }
+
+    .feature-item:last-child {
+      border-bottom: none;
+    }
+
+    .feature-label {
+      font-size: 14px;
+      color: #e5e5e5;
+      font-weight: 400;
+      flex: 1;
+    }
+
+    /* Switch Toggle */
+    .switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: #404040;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .switch.active {
+      background: #4285f4;
+    }
+
+    .switch-handle {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+    }
+
+    .switch.active .switch-handle {
+      transform: translateX(20px);
     }
 
     .footer {
+      background: #1e1e1e;
+      padding: 16px 20px;
+      border-top: 1px solid #404040;
       text-align: center;
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid rgba(255, 255, 255, 0.2);
     }
 
     .version {
       font-size: 12px;
-      opacity: 0.7;
+      color: #808080;
+      font-weight: 400;
+    }
+
+    /* Hover effects */
+    .feature-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .switch:hover {
+      transform: scale(1.05);
+    }
+
+    /* Loading state */
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
     }
   </style>
 </head>
+
 <body>
   <div class="header">
     <h1>🚫 Anti Zombie Scroll</h1>
-    <p>Bloquea el scroll infinito y elementos adictivos</p>
+    <p>Controla tus hábitos de navegación</p>
   </div>
 
-  <div class="status-card">
-    <div class="site-status">
-      <span class="site-name">YouTube</span>
-      <div class="status-indicator"></div>
+  <div class="controls">
+    <!-- YouTube -->
+    <div class="platform-section">
+      <div class="platform-title">
+        <span class="platform-icon">🎬</span>
+        YouTube
+      </div>
+      <div class="feature-item">
+        <span class="feature-label">Bloquear scroll en homepage</span>
+        <div class="switch" data-feature="youtube-scroll">
+          <div class="switch-handle"></div>
+        </div>
+      </div>
+      <div class="feature-item">
+        <span class="feature-label">Ocultar botones de Shorts</span>
+        <div class="switch" data-feature="youtube-shorts">
+          <div class="switch-handle"></div>
+        </div>
+      </div>
+      <div class="feature-item">
+        <span class="feature-label">Bloquear navegación en Shorts</span>
+        <div class="switch" data-feature="youtube-shorts-nav">
+          <div class="switch-handle"></div>
+        </div>
+      </div>
     </div>
-    <div class="site-status">
-      <span class="site-name">Instagram</span>
-      <div class="status-indicator"></div>
-    </div>
-    <div class="site-status">
-      <span class="site-name">X (Twitter)</span>
-      <div class="status-indicator"></div>
-    </div>
-  </div>
 
-  <div class="features">
-    <h3>Características Activas</h3>
-    <ul class="feature-list">
-      <li>Elimina botón de Shorts en YouTube</li>
-      <li>Bloquea navegación en Shorts</li>
-      <li>Bloquea scroll en Instagram</li>
-      <li>Oculta Reels y Explorar</li>
-      <li>Bloquea scroll en X/Twitter</li>
-      <li>Previene zombie scrolling</li>
-    </ul>
+    <!-- Instagram -->
+    <div class="platform-section">
+      <div class="platform-title">
+        <span class="platform-icon">📷</span>
+        Instagram
+      </div>
+      <div class="feature-item">
+        <span class="feature-label">Bloquear scroll en feed</span>
+        <div class="switch" data-feature="instagram-scroll">
+          <div class="switch-handle"></div>
+        </div>
+      </div>
+      <div class="feature-item">
+        <span class="feature-label">Ocultar Reels y Explorar</span>
+        <div class="switch" data-feature="instagram-reels">
+          <div class="switch-handle"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- X/Twitter -->
+    <div class="platform-section">
+      <div class="platform-title">
+        <span class="platform-icon">🐦</span>
+        X (Twitter)
+      </div>
+      <div class="feature-item">
+        <span class="feature-label">Bloquear scroll en timeline</span>
+        <div class="switch" data-feature="x-scroll">
+          <div class="switch-handle"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="footer">
     <p class="version">v1.0 - Protege tu tiempo</p>
   </div>
 
-  <script>
-    // Script simple para mostrar estado
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('Anti Zombie Scroll popup cargado');
-    });
-  </script>
+  <script src="popup.js"></script>
 </body>
+
 </html>

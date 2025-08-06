@@ -1,6 +1,51 @@
 // Anti Zombie Scroll - Content Script
 console.log('Anti Zombie Scroll activado');
 
+// Configuraciones por defecto
+const DEFAULT_SETTINGS = {
+  'youtube-scroll': true,
+  'youtube-shorts': true,
+  'youtube-shorts-nav': true,
+  'instagram-scroll': true,
+  'instagram-reels': true,
+  'x-scroll': true
+};
+
+// Variable global para configuraciones
+let currentSettings = { ...DEFAULT_SETTINGS };
+
+// Cargar configuraciones desde storage
+async function loadSettings() {
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      return new Promise((resolve) => {
+        chrome.storage.sync.get(DEFAULT_SETTINGS, (result) => {
+          currentSettings = result;
+          resolve(result);
+        });
+      });
+    }
+  } catch (error) {
+    console.log('Error cargando configuraciones, usando por defecto:', error);
+  }
+  return DEFAULT_SETTINGS;
+}
+
+// Escuchar mensajes del popup
+if (typeof chrome !== 'undefined' && chrome.runtime) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'SETTING_CHANGED') {
+      currentSettings[message.feature] = message.value;
+      console.log(`Configuración actualizada: ${message.feature} = ${message.value}`);
+
+      // Reinicializar con nueva configuración
+      setTimeout(() => {
+        init();
+      }, 100);
+    }
+  });
+}
+
 // Función para detectar el sitio actual
 function getCurrentSite() {
   const hostname = window.location.hostname;
@@ -90,36 +135,40 @@ function handleYouTube() {
   const isWatchingVideo = window.location.pathname.includes('/watch');
   const isHomePage = window.location.pathname === '/' || window.location.pathname.includes('/feed/');
 
-  // Si estamos viendo un video, NO bloquear scroll en absoluto
+  // Si estamos viendo un video, solo limpiar elementos
   if (isWatchingVideo) {
-    console.log('Viendo video en YouTube - scroll permitido completamente');
-    // Solo ejecutar limpieza de elementos, sin bloqueo de scroll
-    executeYouTubeElementCleanup();
+    console.log('Viendo video en YouTube - solo limpieza de elementos');
+    if (currentSettings['youtube-shorts']) {
+      executeYouTubeElementCleanup();
+    }
     return;
   }
 
-  // Solo aplicar bloqueos en la página principal
+  // Solo aplicar bloqueos en la página principal si está habilitado
   if (!isHomePage) {
     console.log('No estamos en home de YouTube - no aplicar bloqueos de scroll');
     return;
   }
 
-  // Áreas donde SÍ permitir scroll (solo para homepage)
-  const allowedScrollAreas = [
-    // Menús y modales
-    'ytd-menu-popup-renderer',
-    '[role="dialog"]',
-    '[role="menu"]',
+  // Verificar si el bloqueo de scroll está habilitado
+  if (currentSettings['youtube-scroll']) {
+    // Áreas donde SÍ permitir scroll (solo para homepage)
+    const allowedScrollAreas = [
+      // Menús y modales
+      'ytd-menu-popup-renderer',
+      '[role="dialog"]',
+      '[role="menu"]',
 
-    // Configuraciones y guías
-    'ytd-mini-guide-renderer',
+      // Configuraciones y guías
+      'ytd-mini-guide-renderer',
 
-    // Menús desplegables
-    'ytd-dropdown-renderer'
-  ];
+      // Menús desplegables
+      'ytd-dropdown-renderer'
+    ];
 
-  // Solo bloquear scroll en homepage, excepto en áreas permitidas
-  blockScroll(allowedScrollAreas);
+    // Solo bloquear scroll en homepage, excepto en áreas permitidas
+    blockScroll(allowedScrollAreas);
+  }
 
   // Ejecutar bloqueos específicos de homepage
   executeYouTubeHomeBlocks();
@@ -188,18 +237,23 @@ function executeYouTubeHomeBlocks() {
 
   // Función interna para ejecutar bloqueos de homepage
   function executeYouTubeHomeBlocksInternal() {
-    removeElements(youtubeSelectors);
+    // Remover elementos de Shorts solo si está habilitado
+    if (currentSettings['youtube-shorts']) {
+      removeElements(youtubeSelectors);
+    }
 
-    // Solo bloquear scroll del feed principal en homepage
-    const primaryContainer = document.querySelector('#primary, ytd-two-column-browse-results-renderer');
-    if (primaryContainer && !primaryContainer.hasAttribute('data-scroll-blocked')) {
-      primaryContainer.style.overflow = 'hidden !important';
-      primaryContainer.style.height = '100vh !important';
-      primaryContainer.setAttribute('data-scroll-blocked', 'true');
+    // Solo bloquear scroll del feed principal en homepage si está habilitado
+    if (currentSettings['youtube-scroll']) {
+      const primaryContainer = document.querySelector('#primary, ytd-two-column-browse-results-renderer');
+      if (primaryContainer && !primaryContainer.hasAttribute('data-scroll-blocked')) {
+        primaryContainer.style.overflow = 'hidden !important';
+        primaryContainer.style.height = '100vh !important';
+        primaryContainer.setAttribute('data-scroll-blocked', 'true');
+      }
     }
 
     // Detectar si estamos en una página de shorts y bloquear navegación
-    if (window.location.pathname.includes('/shorts/')) {
+    if (window.location.pathname.includes('/shorts/') && currentSettings['youtube-shorts-nav']) {
       // Ocultar botones de navegación específicos de shorts
       const shortNavButtons = document.querySelectorAll('#navigation-button-down, #navigation-button-up');
       shortNavButtons.forEach(btn => {
@@ -235,6 +289,26 @@ function handleInstagram() {
 
   // Detectar si estamos en mensajes directos
   const isDirectMessages = window.location.pathname.includes('/direct/');
+
+  // Si estamos en mensajes directos, permitir scroll completo
+  if (isDirectMessages) {
+    console.log('En mensajes directos de Instagram - scroll permitido');
+    // Solo limpiar elementos si está habilitado
+    if (currentSettings['instagram-reels']) {
+      executeInstagramElementCleanup();
+    }
+    return;
+  }
+
+  // Solo aplicar bloqueos si está habilitado
+  if (!currentSettings['instagram-scroll']) {
+    console.log('Bloqueo de scroll deshabilitado en Instagram');
+    // Solo limpiar elementos si está habilitado
+    if (currentSettings['instagram-reels']) {
+      executeInstagramElementCleanup();
+    }
+    return;
+  }
 
   // Selectores de áreas donde SÍ permitir scroll
   const allowedScrollAreas = [
@@ -291,6 +365,49 @@ function handleInstagram() {
   // Bloquear scroll excepto en áreas permitidas
   blockScroll(allowedScrollAreas);
 
+  // Ejecutar bloqueos de Instagram
+  executeInstagramBlocks();
+}
+
+// Función para limpiar elementos de Instagram (solo elementos)
+function executeInstagramElementCleanup() {
+  const instagramSelectors = [
+    // Botones de Reels y Explorar
+    'a[href="/reels/"]',
+    'a[href*="/reels/"]',
+    'a[href="/explore/"]',
+    'a[href*="/explore/"]',
+    '[aria-label="Reels"]',
+    '[aria-label="Explorar"]',
+    '[aria-label="Explore"]',
+
+    // En español
+    '[aria-label="Carretes"]',
+    '[aria-label="Descubrir"]',
+
+    // Iconos y enlaces específicos
+    'svg[aria-label="Reels"]',
+    'svg[aria-label="Explorar"]',
+    'svg[aria-label="Explore"]',
+    'svg[aria-label="Carretes"]',
+
+    // Tabs de navegación
+    'div[role="tablist"] a[href*="/reels/"]',
+    'div[role="tablist"] a[href*="/explore/"]'
+  ];
+
+  removeElements(instagramSelectors);
+
+  // Observar cambios en el DOM
+  const observer = new MutationObserver(() => executeInstagramElementCleanup());
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Re-ejecutar cada segundo
+  setInterval(executeInstagramElementCleanup, 1000);
+}
+
+// Función principal de bloqueos de Instagram
+function executeInstagramMainBlocks() {
   // Selectores para Instagram
   const instagramSelectors = [
     // Botones de Reels y Explorar
@@ -318,10 +435,13 @@ function handleInstagram() {
   ];
 
   function executeInstagramBlocks() {
-    removeElements(instagramSelectors);
+    // Remover elementos solo si está habilitado
+    if (currentSettings['instagram-reels']) {
+      removeElements(instagramSelectors);
+    }
 
-    // Solo bloquear scroll del feed principal, no de toda la página
-    if (!isDirectMessages) {
+    // Solo bloquear scroll del feed principal si está habilitado y no estamos en DM
+    if (currentSettings['instagram-scroll'] && !isDirectMessages) {
       // Buscar el contenedor del feed principal y bloquearlo específicamente
       const feedContainer = document.querySelector('main section > div');
       if (feedContainer && !feedContainer.hasAttribute('data-scroll-blocked')) {
@@ -381,9 +501,9 @@ function handleX() {
     return; // Salir sin aplicar ningún bloqueo
   }
 
-  // Solo aplicar bloqueos si estamos en /home o página principal
-  if (!isHome) {
-    console.log('No estamos en /home - no aplicar bloqueos de scroll');
+  // Solo aplicar bloqueos si estamos en /home o página principal Y está habilitado
+  if (!isHome || !currentSettings['x-scroll']) {
+    console.log('No estamos en /home o bloqueo deshabilitado - no aplicar bloqueos de scroll');
     return;
   }
 
@@ -456,7 +576,7 @@ function handleX() {
 }
 
 // Inicialización principal
-function init() {
+async function init() {
   const site = getCurrentSite();
 
   // Solo ejecutar en sitios específicos
@@ -465,7 +585,9 @@ function init() {
     return;
   }
 
-  console.log(`Anti Zombie Scroll iniciado en: ${site}`);
+  // Cargar configuraciones
+  await loadSettings();
+  console.log(`Anti Zombie Scroll iniciado en: ${site}`, currentSettings);
 
   switch (site) {
     case 'youtube':
