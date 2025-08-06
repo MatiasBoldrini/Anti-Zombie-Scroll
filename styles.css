@@ -1,0 +1,158 @@
+/* Anti Zombie Scroll - Estilos CSS */
+
+/* ======================
+   YOUTUBE - Bloqueo de Shorts
+   ====================== */
+
+/* Ocultar botón de Shorts en sidebar */
+a[href="/shorts"],
+a[href*="/shorts"],
+[title="Shorts"],
+[aria-label="Shorts"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Ocultar contenedores de Shorts */
+ytd-rich-shelf-renderer[is-shorts],
+ytd-reel-shelf-renderer,
+ytd-shorts-shelf-renderer,
+#shorts-container,
+[is-shorts] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Ocultar botones de navegación en Shorts */
+#navigation-button-down,
+#navigation-button-up,
+.ytd-shorts-player-controls,
+ytd-shorts-player-controls {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Ocultar panel lateral en Shorts */
+#shorts-inner-container #secondary,
+ytd-shorts-secondary-info-renderer {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Ocultar sugerencias de Shorts */
+[data-content-type="shorts"],
+ytd-compact-video-renderer[is-shorts] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* ======================
+   INSTAGRAM - Bloqueo de Scroll y Reels
+   ====================== */
+
+/* Ocultar botones de Reels y Explorar */
+a[href="/reels/"],
+a[href*="/reels/"],
+a[href="/explore/"],
+a[href*="/explore/"],
+[aria-label="Reels"],
+[aria-label="Explorar"],
+[aria-label="Explore"],
+[aria-label="Carretes"],
+[aria-label="Descubrir"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Ocultar iconos SVG de Reels y Explorar */
+svg[aria-label="Reels"],
+svg[aria-label="Explorar"],
+svg[aria-label="Explore"],
+svg[aria-label="Carretes"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Ocultar en tabs de navegación */
+div[role="tablist"] a[href*="/reels/"],
+div[role="tablist"] a[href*="/explore/"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Permitir scroll en historias y mensajes directos */
+[role="dialog"],
+[data-testid="stories-viewer"],
+[data-testid="direct-messaging"],
+[data-testid="thread-list"],
+[data-testid="message-list"],
+[data-testid="conversation-viewer"],
+[role="log"] {
+  overflow: auto !important;
+  height: auto !important;
+  max-height: none !important;
+}
+
+/* Solo bloquear el feed principal, no toda la página */
+main section > div[data-scroll-blocked="true"] {
+  overflow: hidden !important;
+  height: 100vh !important;
+}
+
+/* ======================
+   X (TWITTER) - Bloqueo de Scroll
+   ====================== */
+
+/* Solo bloquear el timeline principal */
+[data-testid="primaryColumn"][data-scroll-blocked="true"] {
+  overflow: hidden !important;
+  height: 100vh !important;
+}
+
+/* Permitir scroll en mensajes directos y modales */
+[data-testid="dm-drawer"],
+[data-testid="conversation-container"],
+[data-testid="DMDrawer"],
+[role="dialog"],
+[data-testid="modal"],
+[data-testid="settingsModal"] {
+  overflow: auto !important;
+  height: auto !important;
+  max-height: none !important;
+}
+
+/* ======================
+   ESTILOS GLOBALES
+   ====================== */
+
+/* Prevenir scroll en elementos que podrían bypassear */
+.anti-zombie-scroll {
+  overflow: hidden !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ocultar scrollbars */
+.anti-zombie-scroll::-webkit-scrollbar {
+  display: none !important;
+}
+
+.anti-zombie-scroll {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Mensaje visual opcional (comentado por defecto) */
+/*
+.zombie-scroll-blocked {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: #ff4444;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 999999;
+  font-family: Arial, sans-serif;
+}
+*/

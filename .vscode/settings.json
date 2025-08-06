@@ -1,0 +1,19 @@
+{
+    "workbench.colorCustomizations": {
+        "[Darkanian (MT Ocean HC)]": {
+            "sideBarTitle.foreground": "#abaeba",
+            "sideBar.foreground": "#8890ad"
+        },
+        "[Darkanian (SoftDark)]": {
+            "terminal.foreground": "#b3b3b3",
+            "terminal.ansiYellow": "#e1ca70",
+            "terminal.ansiBrightMagenta": "#b875c6",
+            "terminal.background": "#ff000000",
+            "terminal.ansiBrightYellow": "#b6a359"
+        },
+        "[Darkanian (MT Darker HC)]": {},
+        "activityBar.background": "#362B23",
+        "titleBar.activeBackground": "#4C3D31",
+        "titleBar.activeForeground": "#FCFBFB"
+    }
+}
