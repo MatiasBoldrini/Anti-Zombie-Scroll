@@ -54,13 +54,6 @@ UnReel/
 └── README.md             # Este archivo
 ```
 
-## ⚠️ Nota Importante
-
-Esta extensión está diseñada para ayudarte a tener un consumo más consciente de redes sociales. Si necesitas acceder a alguna funcionalidad bloqueada, puedes:
-
-1. Desactivar temporalmente la extensión
-2. Usar modo incógnito (si no tienes la extensión habilitada allí)
-
 ## 🤝 Contribuir
 
 ¿Encontraste un bug o quieres sugerir una mejora? ¡Abre un issue o envía un pull request!
