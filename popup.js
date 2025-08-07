@@ -1,12 +1,20 @@
-// Configuraciones por defecto
+// Configuraciones por defecto - simplificadas
 const DEFAULT_SETTINGS = {
-    'youtube-scroll': true,
-    'youtube-shorts': true,
-    'youtube-shorts-nav': true,
-    'instagram-scroll': true,
-    'instagram-reels': true,
-    'x-scroll': true
+    'youtube': true,
+    'instagram': true,
+    'x': true
 };
+
+// Lista de palabras para el desafío de verificación
+const CHALLENGE_WORDS = [
+    'zombie', 'seguro', 'scroll', 'adiccion', 'control',
+    'tiempo', 'habito', 'pausa', 'enfoque', 'mental'
+];
+
+// Variables globales para el modal
+let currentPlatform = null;
+let currentWord = null;
+let currentSwitchElement = null;
 
 // Cargar configuraciones al inicializar
 document.addEventListener('DOMContentLoaded', async function () {
@@ -34,10 +42,37 @@ document.addEventListener('DOMContentLoaded', async function () {
             switchElement.addEventListener('click', handleSwitchToggle);
         });
 
+        // Event listeners para el modal
+        setupModalEventListeners();
+
     } catch (error) {
         console.error('Error al cargar configuraciones:', error);
     }
 });
+
+// Configurar event listeners del modal
+function setupModalEventListeners() {
+    const modal = document.getElementById('verification-modal');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const verifyBtn = document.getElementById('verify-btn');
+    const wordInput = document.getElementById('word-input');
+
+    cancelBtn.addEventListener('click', closeModal);
+    verifyBtn.addEventListener('click', verifyWord);
+
+    // Permitir verificar con Enter
+    wordInput.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            verifyWord();
+        }
+    });
+
+    // Limpiar mensaje de error al escribir
+    wordInput.addEventListener('input', function () {
+        const errorMessage = document.getElementById('error-message');
+        errorMessage.classList.add('hidden');
+    });
+}
 
 // Manejar el toggle de switches
 async function handleSwitchToggle(event) {
@@ -46,26 +81,91 @@ async function handleSwitchToggle(event) {
 
     if (!feature) return;
 
-    // Toggle visual
-    switchElement.classList.toggle('active');
+    const isCurrentlyActive = switchElement.classList.contains('active');
 
-    // Obtener nuevo estado
-    const isActive = switchElement.classList.contains('active');
+    // Si está activado y el usuario quiere desactivarlo, mostrar modal de verificación
+    if (isCurrentlyActive) {
+        currentPlatform = feature;
+        currentSwitchElement = switchElement;
+        showVerificationModal();
+        return;
+    }
 
+    // Si está desactivado, activarlo directamente
     try {
-        // Guardar configuración
-        await saveFeatureSetting(feature, isActive);
-
-        // Notificar a los content scripts sobre el cambio
-        await notifyContentScripts(feature, isActive);
-
-        console.log(`${feature} ${isActive ? 'activado' : 'desactivado'}`);
-
+        switchElement.classList.add('active');
+        await saveFeatureSetting(feature, true);
+        await notifyContentScripts(feature, true);
+        console.log(`${feature} activado`);
     } catch (error) {
         console.error('Error al guardar configuración:', error);
+        switchElement.classList.remove('active');
+    }
+}
 
-        // Revertir cambio visual si hay error
-        switchElement.classList.toggle('active');
+// Mostrar modal de verificación
+function showVerificationModal() {
+    const modal = document.getElementById('verification-modal');
+    const challengeWord = document.getElementById('challenge-word');
+    const wordInput = document.getElementById('word-input');
+    const errorMessage = document.getElementById('error-message');
+
+    // Seleccionar palabra aleatoria
+    currentWord = CHALLENGE_WORDS[Math.floor(Math.random() * CHALLENGE_WORDS.length)];
+
+    // Mostrar la palabra en el modal
+    challengeWord.textContent = currentWord.toUpperCase();
+
+    // Limpiar input y errores
+    wordInput.value = '';
+    errorMessage.classList.add('hidden');
+
+    // Mostrar modal
+    modal.classList.remove('hidden');
+
+    // Enfocar en el input
+    setTimeout(() => wordInput.focus(), 100);
+}
+
+// Cerrar modal
+function closeModal() {
+    const modal = document.getElementById('verification-modal');
+    modal.classList.add('hidden');
+
+    // Limpiar variables
+    currentPlatform = null;
+    currentWord = null;
+    currentSwitchElement = null;
+}
+
+// Verificar palabra ingresada
+async function verifyWord() {
+    const wordInput = document.getElementById('word-input');
+    const errorMessage = document.getElementById('error-message');
+    const userInput = wordInput.value.toLowerCase().trim();
+
+    // Verificar si la palabra está al revés
+    const reversedWord = currentWord.split('').reverse().join('');
+
+    if (userInput === reversedWord) {
+        // Palabra correcta - desactivar protección
+        try {
+            currentSwitchElement.classList.remove('active');
+            await saveFeatureSetting(currentPlatform, false);
+            await notifyContentScripts(currentPlatform, false);
+
+            console.log(`${currentPlatform} desactivado`);
+            closeModal();
+
+        } catch (error) {
+            console.error('Error al guardar configuración:', error);
+            currentSwitchElement.classList.add('active');
+        }
+    } else {
+        // Palabra incorrecta - mostrar error
+        errorMessage.classList.remove('hidden');
+        wordInput.value = '';
+        wordInput.focus();
     }
 }
 
@@ -94,15 +194,31 @@ async function notifyContentScripts(feature, isActive) {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
         if (tab) {
-            // Enviar mensaje al content script
-            chrome.tabs.sendMessage(tab.id, {
-                type: 'SETTING_CHANGED',
-                feature: feature,
-                value: isActive
-            }).catch(error => {
-                // Es normal que algunos tabs no tengan content script
-                console.log('No se pudo enviar mensaje al tab:', error.message);
-            });
+            // Mapear las características simplificadas a las originales
+            let features = [];
+
+            switch (feature) {
+                case 'youtube':
+                    features = ['youtube-scroll', 'youtube-shorts', 'youtube-shorts-nav'];
+                    break;
+                case 'instagram':
+                    features = ['instagram-scroll', 'instagram-reels'];
+                    break;
+                case 'x':
+                    features = ['x-scroll'];
+                    break;
+            }
+
+            // Enviar mensaje para cada característica mapeada
+            for (const mappedFeature of features) {
+                chrome.tabs.sendMessage(tab.id, {
+                    type: 'SETTING_CHANGED',
+                    feature: mappedFeature,
+                    value: isActive
+                }).catch(error => {
+                    console.log('No se pudo enviar mensaje al tab:', error.message);
+                });
+            }
         }
     } catch (error) {
         console.log('Error al notificar content script:', error);

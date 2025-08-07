@@ -146,6 +146,123 @@
       opacity: 0.6;
       pointer-events: none;
     }
+
+    /* Modal styles */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal.hidden {
+      display: none;
+    }
+
+    .modal-content {
+      background: #2a2a2a;
+      border: 1px solid #404040;
+      border-radius: 12px;
+      padding: 24px;
+      width: 300px;
+      max-width: 90%;
+      text-align: center;
+    }
+
+    .modal-content h3 {
+      color: #ffffff;
+      font-size: 18px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .modal-content p {
+      color: #b0b0b0;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+
+    .word-challenge {
+      background: #1e1e1e;
+      border: 1px solid #404040;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      font-size: 24px;
+      font-weight: 600;
+      color: #4285f4;
+      letter-spacing: 2px;
+    }
+
+    #word-input {
+      width: 100%;
+      padding: 12px;
+      background: #1e1e1e;
+      border: 1px solid #404040;
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 16px;
+      text-align: center;
+      margin-bottom: 16px;
+      font-family: 'Be Vietnam Pro', sans-serif;
+    }
+
+    #word-input:focus {
+      outline: none;
+      border-color: #4285f4;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: 'Be Vietnam Pro', sans-serif;
+    }
+
+    .btn-primary {
+      background: #4285f4;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #3367d6;
+    }
+
+    .btn-secondary {
+      background: #404040;
+      color: #e5e5e5;
+    }
+
+    .btn-secondary:hover {
+      background: #505050;
+    }
+
+    .error-message {
+      color: #ff6b6b;
+      font-size: 12px;
+      margin-top: 12px;
+    }
+
+    .error-message.hidden {
+      display: none;
+    }
   </style>
 </head>
 
@@ -163,20 +280,8 @@
         YouTube
       </div>
       <div class="feature-item">
-        <span class="feature-label">Bloquear scroll en homepage</span>
-        <div class="switch" data-feature="youtube-scroll">
-          <div class="switch-handle"></div>
-        </div>
-      </div>
-      <div class="feature-item">
-        <span class="feature-label">Ocultar botones de Shorts</span>
-        <div class="switch" data-feature="youtube-shorts">
-          <div class="switch-handle"></div>
-        </div>
-      </div>
-      <div class="feature-item">
-        <span class="feature-label">Bloquear navegación en Shorts</span>
-        <div class="switch" data-feature="youtube-shorts-nav">
+        <span class="feature-label">Protección activada</span>
+        <div class="switch" data-feature="youtube">
           <div class="switch-handle"></div>
         </div>
       </div>
@@ -189,14 +294,8 @@
         Instagram
       </div>
       <div class="feature-item">
-        <span class="feature-label">Bloquear scroll en feed</span>
-        <div class="switch" data-feature="instagram-scroll">
-          <div class="switch-handle"></div>
-        </div>
-      </div>
-      <div class="feature-item">
-        <span class="feature-label">Ocultar Reels y Explorar</span>
-        <div class="switch" data-feature="instagram-reels">
+        <span class="feature-label">Protección activada</span>
+        <div class="switch" data-feature="instagram">
           <div class="switch-handle"></div>
         </div>
       </div>
@@ -209,10 +308,29 @@
         X (Twitter)
       </div>
       <div class="feature-item">
-        <span class="feature-label">Bloquear scroll en timeline</span>
-        <div class="switch" data-feature="x-scroll">
+        <span class="feature-label">Protección activada</span>
+        <div class="switch" data-feature="x">
           <div class="switch-handle"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de verificación -->
+  <div id="verification-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>🔒 Verificación de seguridad</h3>
+      <p>Para desactivar la protección, escribe esta palabra al revés:</p>
+      <div class="word-challenge">
+        <span id="challenge-word"></span>
+      </div>
+      <input type="text" id="word-input" placeholder="Escribe la palabra al revés..." autocomplete="off">
+      <div class="modal-buttons">
+        <button id="cancel-btn" class="btn-secondary">Cancelar</button>
+        <button id="verify-btn" class="btn-primary">Verificar</button>
+      </div>
+      <div id="error-message" class="error-message hidden">
+        Palabra incorrecta. Inténtalo de nuevo.
       </div>
     </div>
   </div>
