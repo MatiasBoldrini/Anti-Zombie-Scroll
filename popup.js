@@ -222,7 +222,13 @@ async function notifyContentScripts(feature, isActive) {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
         if (tab) {
-            // Enviar mensaje directamente con la característica simplificada
+            // Manejar "ocultar feed" con CSS injection en lugar de mensajes
+            if (feature === 'youtube-hide-feed') {
+                await handleYoutubeFeedCSS(tab.id, isActive);
+                return;
+            }
+
+            // Para otras características, enviar mensaje al content script
             chrome.tabs.sendMessage(tab.id, {
                 type: 'SETTING_CHANGED',
                 feature: feature,
@@ -233,6 +239,52 @@ async function notifyContentScripts(feature, isActive) {
         }
     } catch (error) {
         console.log('Error al notificar content script:', error);
+    }
+}
+
+// Manejar la inyección/remoción de CSS para ocultar feed
+async function handleYoutubeFeedCSS(tabId, shouldHide) {
+    try {
+        if (shouldHide) {
+            // Inyectar CSS para ocultar feed
+            await chrome.scripting.insertCSS({
+                target: { tabId: tabId },
+                css: `
+                    /* Ocultar feed de YouTube */
+                    #contents {
+                        display: none !important;
+                    }
+                    
+                    /* Selectores adicionales para compatibilidad */
+                    ytd-rich-grid-renderer #contents,
+                    .ytd-rich-grid-renderer #contents,
+                    div#primary ytd-rich-grid-renderer {
+                        display: none !important;
+                    }
+                `
+            });
+            console.log('CSS para ocultar feed inyectado');
+        } else {
+            // Remover CSS - inyectar CSS que restaura la visibilidad
+            await chrome.scripting.insertCSS({
+                target: { tabId: tabId },
+                css: `
+                    /* Restaurar feed de YouTube */
+                    #contents {
+                        display: block !important;
+                    }
+                    
+                    ytd-rich-grid-renderer #contents,
+                    .ytd-rich-grid-renderer #contents,
+                    div#primary ytd-rich-grid-renderer {
+                        display: block !important;
+                    }
+                `
+            });
+            console.log('CSS para mostrar feed inyectado');
+        }
+    } catch (error) {
+        console.log('Error manejando CSS del feed:', error);
     }
 }
 

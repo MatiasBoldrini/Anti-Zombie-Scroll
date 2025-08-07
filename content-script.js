@@ -20,8 +20,7 @@ let scrollListeners = {
   scroll: null
 };
 
-// Variable para el observer del feed de YouTube
-let youTubeFeedObserver = null;
+// Variable para el observer del feed de YouTube - YA NO SE USA (CSS directo)
 
 // Variable para el observer de botones de Shorts
 let youTubeShortsObserver = null;
@@ -263,14 +262,8 @@ function handleYouTube() {
     }
   }
 
-  // Manejar ocultación del feed (solo en páginas que no son Shorts)
-  if (!isYouTubeShorts()) {
-    if (currentSettings['youtube-hide-feed']) {
-      hideYouTubeFeed();
-    } else {
-      showYouTubeFeed();
-    }
-  }
+  // Nota: El feed ahora se maneja con CSS directo desde el popup
+  // La funcionalidad "ocultar feed" ya no se maneja aquí
 }
 
 // Función para ocultar elementos de Shorts de YouTube
@@ -378,92 +371,7 @@ function restoreYouTubeElements() {
   });
 }
 
-// Función para ocultar el feed de YouTube
-function hideYouTubeFeed() {
-  console.log('🎬 Ocultando feed de YouTube');
-
-  // Detener observer previo si existe
-  if (youTubeFeedObserver) {
-    youTubeFeedObserver.disconnect();
-  }
-
-  // Función para ocultar el contenido principal
-  function hideFeedElements() {
-    // Selector principal: div con id "contents"
-    const contentsDiv = document.getElementById('contents');
-    if (contentsDiv && !contentsDiv.hasAttribute('data-hidden-by-unreel-feed')) {
-      contentsDiv.style.display = 'none !important';
-      contentsDiv.style.visibility = 'hidden !important';
-      contentsDiv.setAttribute('data-hidden-by-unreel-feed', 'true');
-      console.log('✅ Feed ocultado: div#contents');
-    }
-
-    // También ocultar selectores alternativos por si acaso
-    const alternativeSelectors = [
-      '#contents.ytd-rich-grid-renderer',
-      'ytd-rich-grid-renderer #contents',
-      'div#primary ytd-rich-grid-renderer'
-    ];
-
-    alternativeSelectors.forEach(selector => {
-      const elements = document.querySelectorAll(selector);
-      elements.forEach(el => {
-        if (el && !el.hasAttribute('data-hidden-by-unreel-feed')) {
-          el.style.display = 'none !important';
-          el.style.visibility = 'hidden !important';
-          el.setAttribute('data-hidden-by-unreel-feed', 'true');
-          console.log('✅ Feed alternativo ocultado:', selector);
-        }
-      });
-    });
-  }
-
-  // Ocultar elementos existentes
-  hideFeedElements();
-
-  // Configurar observer para contenido dinámico
-  youTubeFeedObserver = new MutationObserver((mutations) => {
-    let shouldHide = false;
-    mutations.forEach((mutation) => {
-      if (mutation.addedNodes.length > 0) {
-        shouldHide = true;
-      }
-    });
-
-    if (shouldHide && currentSettings['youtube-hide-feed']) {
-      setTimeout(hideFeedElements, 100);
-    }
-  });
-
-  // Observar cambios en el contenedor principal
-  const targetContainer = document.querySelector('ytd-app') || document.body;
-  if (targetContainer) {
-    youTubeFeedObserver.observe(targetContainer, {
-      childList: true,
-      subtree: true
-    });
-  }
-}
-
-// Función para mostrar el feed de YouTube
-function showYouTubeFeed() {
-  console.log('🎬 Mostrando feed de YouTube');
-
-  // Detener observer si existe
-  if (youTubeFeedObserver) {
-    youTubeFeedObserver.disconnect();
-    youTubeFeedObserver = null;
-  }
-
-  // Restaurar visibilidad de elementos marcados para feed
-  const hiddenFeedElements = document.querySelectorAll('[data-hidden-by-unreel-feed="true"]');
-  hiddenFeedElements.forEach(el => {
-    el.style.display = '';
-    el.style.visibility = '';
-    el.removeAttribute('data-hidden-by-unreel-feed');
-    console.log('✅ Feed restaurado');
-  });
-}
+// Las funciones de feed fueron removidas - ahora se usa CSS directo desde el popup
 
 // Función para bloquear navegación en Shorts
 function blockShortsNavigation() {
