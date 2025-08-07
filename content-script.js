@@ -1,14 +1,12 @@
 // Anti Zombie Scroll - Content Script
 console.log('Anti Zombie Scroll activado');
 
-// Configuraciones por defecto
+// Configuraciones por defecto - deben coincidir con popup.js
 const DEFAULT_SETTINGS = {
-  'youtube-scroll': true,
-  'youtube-shorts': true,
-  'youtube-shorts-nav': true,
-  'instagram-scroll': true,
-  'instagram-reels': true,
-  'x-scroll': true
+  'youtube': true,
+  'youtube-hide-feed': false,
+  'instagram': true,
+  'x': true
 };
 
 // Variable global para configuraciones
@@ -21,6 +19,15 @@ let scrollListeners = {
   touchmove: null,
   scroll: null
 };
+
+// Variable para el observer del feed de YouTube
+let youTubeFeedObserver = null;
+
+// Variable para el observer de botones de Shorts
+let youTubeShortsObserver = null;
+
+// Variable para el observer de elementos de Shorts
+let youTubeShortsElementsObserver = null;
 
 // Cargar configuraciones desde storage
 async function loadSettings() {
@@ -35,7 +42,10 @@ async function loadSettings() {
             resolve(DEFAULT_SETTINGS);
             return;
           }
-          currentSettings = result;
+
+          // Actualizar configuraciones actuales
+          currentSettings = { ...result };
+          console.log('📋 Configuraciones cargadas:', currentSettings);
           resolve(result);
         });
       });
@@ -53,8 +63,9 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       try {
         if (message.type === 'SETTING_CHANGED') {
+          console.log(`🔄 Mensaje recibido: ${message.feature} = ${message.value}`);
           currentSettings[message.feature] = message.value;
-          console.log(`Configuración actualizada: ${message.feature} = ${message.value}`);
+          console.log('📋 Configuraciones actualizadas:', currentSettings);
 
           // Reinicializar con nueva configuración
           setTimeout(() => {
@@ -79,6 +90,11 @@ function getCurrentSite() {
   return null;
 }
 
+// Función para detectar si estamos en una página de Shorts
+function isYouTubeShorts() {
+  return window.location.pathname.includes('/shorts/');
+}
+
 // Función para verificar si debemos bloquear scroll en la URL actual
 function shouldBlockScroll() {
   const url = window.location.href;
@@ -99,8 +115,8 @@ function shouldBlockScroll() {
     return true;
   }
 
-  // YouTube - solo en home
-  if (url.includes('youtube.com') && (pathname === '/' || pathname.includes('/feed/'))) {
+  // YouTube - en home y Shorts
+  if (url.includes('youtube.com') && (pathname === '/' || pathname.includes('/feed/') || pathname.includes('/shorts/'))) {
     console.log('✅ YouTube: Bloqueando scroll en', pathname);
     return true;
   }
@@ -174,6 +190,14 @@ function blockVerticalScroll() {
     if (verticalScrollKeys.includes(e.keyCode) && !horizontalKeys.includes(e.keyCode)) {
       e.preventDefault();
       e.stopPropagation();
+      console.log('🚫 Tecla de scroll bloqueada:', e.keyCode);
+    }
+
+    // En Shorts, también bloquear las flechas arriba/abajo que navegan entre videos
+    if (isYouTubeShorts() && (e.keyCode === 38 || e.keyCode === 40)) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('🚫 Navegación por teclado en Shorts bloqueada');
     }
   };
 
@@ -217,36 +241,352 @@ function handleYouTube() {
   console.log('🎬 YouTube: Configurando bloqueos');
 
   // Solo bloquear scroll si está habilitado Y estamos en la URL correcta
-  if (currentSettings['youtube-scroll'] && shouldBlockScroll()) {
+  if (currentSettings['youtube'] && shouldBlockScroll()) {
     blockVerticalScroll();
+
+    // Si estamos en Shorts, también bloquear navegación
+    if (isYouTubeShorts()) {
+      blockShortsNavigation();
+    }
   } else {
     // Si no debe bloquear, limpiar listeners previos
     removeScrollListeners();
+    restoreShortsNavigation();
   }
 
-  // Limpiar elementos de Shorts si está habilitado
-  if (currentSettings['youtube-shorts']) {
-    removeYouTubeElements();
+  // Manejar elementos de Shorts (solo en páginas que no son Shorts individuales)
+  if (!isYouTubeShorts()) {
+    if (currentSettings['youtube']) {
+      removeYouTubeElements();
+    } else {
+      restoreYouTubeElements();
+    }
+  }
+
+  // Manejar ocultación del feed (solo en páginas que no son Shorts)
+  if (!isYouTubeShorts()) {
+    if (currentSettings['youtube-hide-feed']) {
+      hideYouTubeFeed();
+    } else {
+      showYouTubeFeed();
+    }
   }
 }
 
-// Función simple para remover elementos de YouTube
+// Función para ocultar elementos de Shorts de YouTube
 function removeYouTubeElements() {
-  const youtubeSelectors = [
-    // Botones de Shorts
-    'a[href="/shorts"]',
-    'a[href*="/shorts"]',
-    '[title="Shorts"]',
-    '[aria-label="Shorts"]',
+  console.log('🎬 Ocultando elementos de Shorts');
 
-    // Contenido de Shorts
-    'ytd-reel-shelf-renderer',
-    'ytd-shorts-shelf-renderer',
-    '[is-shorts]',
-    'ytd-compact-video-renderer[is-shorts]'
+  // Detener observer previo si existe
+  if (youTubeShortsElementsObserver) {
+    youTubeShortsElementsObserver.disconnect();
+  }
+
+  // Función para ocultar elementos
+  function hideShortsElements() {
+    const youtubeSelectors = [
+      // Botones de Shorts en la navegación
+      'a[href="/shorts"]',
+      'a[href*="/shorts"]',
+      '[title="Shorts"]',
+      '[aria-label="Shorts"]',
+
+      // Texto "Shorts" en la navegación lateral
+      'tp-yt-paper-item:has(yt-formatted-string[title="Shorts"])',
+      'ytd-guide-entry-renderer:has([title="Shorts"])',
+
+      // Contenido de Shorts en el feed
+      'ytd-reel-shelf-renderer',
+      'ytd-shorts-shelf-renderer',
+      '[is-shorts]',
+      'ytd-compact-video-renderer[is-shorts]'
+    ];
+
+    youtubeSelectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(el => {
+        if (el && !el.hasAttribute('data-hidden-by-unreel-shorts')) {
+          el.style.display = 'none !important';
+          el.style.visibility = 'hidden !important';
+          el.setAttribute('data-hidden-by-unreel-shorts', 'true');
+          console.log('✅ Elemento de Shorts ocultado:', selector);
+        }
+      });
+    });
+
+    // Búsqueda más específica para el botón "Shorts" en la navegación
+    const allLinks = document.querySelectorAll('a');
+    allLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      const text = link.textContent.trim().toLowerCase();
+
+      if ((href && href.includes('/shorts')) || text === 'shorts') {
+        if (!link.hasAttribute('data-hidden-by-unreel-shorts')) {
+          link.style.display = 'none !important';
+          link.style.visibility = 'hidden !important';
+          link.setAttribute('data-hidden-by-unreel-shorts', 'true');
+          console.log('✅ Enlace de Shorts ocultado:', text);
+        }
+      }
+    });
+  }
+
+  // Ocultar elementos existentes
+  hideShortsElements();
+
+  // Configurar observer para contenido dinámico
+  youTubeShortsElementsObserver = new MutationObserver((mutations) => {
+    let shouldHide = false;
+    mutations.forEach((mutation) => {
+      if (mutation.addedNodes.length > 0) {
+        shouldHide = true;
+      }
+    });
+
+    if (shouldHide && currentSettings['youtube']) {
+      setTimeout(hideShortsElements, 100);
+    }
+  });
+
+  // Observar cambios en el contenedor principal
+  const targetContainer = document.querySelector('ytd-app') || document.body;
+  if (targetContainer) {
+    youTubeShortsElementsObserver.observe(targetContainer, {
+      childList: true,
+      subtree: true
+    });
+  }
+}
+
+// Función para restaurar elementos de Shorts de YouTube
+function restoreYouTubeElements() {
+  console.log('🎬 Restaurando elementos de Shorts');
+
+  // Detener observer si existe
+  if (youTubeShortsElementsObserver) {
+    youTubeShortsElementsObserver.disconnect();
+    youTubeShortsElementsObserver = null;
+  }
+
+  // Restaurar visibilidad de elementos marcados para Shorts
+  const hiddenShortsElements = document.querySelectorAll('[data-hidden-by-unreel-shorts="true"]');
+  hiddenShortsElements.forEach(el => {
+    el.style.display = '';
+    el.style.visibility = '';
+    el.removeAttribute('data-hidden-by-unreel-shorts');
+    console.log('✅ Elemento de Shorts restaurado');
+  });
+}
+
+// Función para ocultar el feed de YouTube
+function hideYouTubeFeed() {
+  console.log('🎬 Ocultando feed de YouTube');
+
+  // Detener observer previo si existe
+  if (youTubeFeedObserver) {
+    youTubeFeedObserver.disconnect();
+  }
+
+  // Función para ocultar el contenido principal
+  function hideFeedElements() {
+    // Selector principal: div con id "contents"
+    const contentsDiv = document.getElementById('contents');
+    if (contentsDiv && !contentsDiv.hasAttribute('data-hidden-by-unreel-feed')) {
+      contentsDiv.style.display = 'none !important';
+      contentsDiv.style.visibility = 'hidden !important';
+      contentsDiv.setAttribute('data-hidden-by-unreel-feed', 'true');
+      console.log('✅ Feed ocultado: div#contents');
+    }
+
+    // También ocultar selectores alternativos por si acaso
+    const alternativeSelectors = [
+      '#contents.ytd-rich-grid-renderer',
+      'ytd-rich-grid-renderer #contents',
+      'div#primary ytd-rich-grid-renderer'
+    ];
+
+    alternativeSelectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(el => {
+        if (el && !el.hasAttribute('data-hidden-by-unreel-feed')) {
+          el.style.display = 'none !important';
+          el.style.visibility = 'hidden !important';
+          el.setAttribute('data-hidden-by-unreel-feed', 'true');
+          console.log('✅ Feed alternativo ocultado:', selector);
+        }
+      });
+    });
+  }
+
+  // Ocultar elementos existentes
+  hideFeedElements();
+
+  // Configurar observer para contenido dinámico
+  youTubeFeedObserver = new MutationObserver((mutations) => {
+    let shouldHide = false;
+    mutations.forEach((mutation) => {
+      if (mutation.addedNodes.length > 0) {
+        shouldHide = true;
+      }
+    });
+
+    if (shouldHide && currentSettings['youtube-hide-feed']) {
+      setTimeout(hideFeedElements, 100);
+    }
+  });
+
+  // Observar cambios en el contenedor principal
+  const targetContainer = document.querySelector('ytd-app') || document.body;
+  if (targetContainer) {
+    youTubeFeedObserver.observe(targetContainer, {
+      childList: true,
+      subtree: true
+    });
+  }
+}
+
+// Función para mostrar el feed de YouTube
+function showYouTubeFeed() {
+  console.log('🎬 Mostrando feed de YouTube');
+
+  // Detener observer si existe
+  if (youTubeFeedObserver) {
+    youTubeFeedObserver.disconnect();
+    youTubeFeedObserver = null;
+  }
+
+  // Restaurar visibilidad de elementos marcados para feed
+  const hiddenFeedElements = document.querySelectorAll('[data-hidden-by-unreel-feed="true"]');
+  hiddenFeedElements.forEach(el => {
+    el.style.display = '';
+    el.style.visibility = '';
+    el.removeAttribute('data-hidden-by-unreel-feed');
+    console.log('✅ Feed restaurado');
+  });
+}
+
+// Función para bloquear navegación en Shorts
+function blockShortsNavigation() {
+  console.log('🎬 Bloqueando navegación en Shorts');
+
+  // Detener observer previo si existe
+  if (youTubeShortsObserver) {
+    youTubeShortsObserver.disconnect();
+  }
+
+  // Selectores para botones de navegación en Shorts
+  const shortsNavigationSelectors = [
+    // Botones de navegación principal
+    '.yt-spec-touch-feedback-shape.yt-spec-touch-feedback-shape--touch-response',
+    'yt-spec-touch-feedback-shape[aria-label*="anterior"]',
+    'yt-spec-touch-feedback-shape[aria-label*="siguiente"]',
+    'yt-spec-touch-feedback-shape[aria-label*="previous"]',
+    'yt-spec-touch-feedback-shape[aria-label*="next"]',
+
+    // Botones específicos de navegación
+    'button[aria-label*="Anterior"]',
+    'button[aria-label*="Siguiente"]',
+    'button[aria-label*="Previous"]',
+    'button[aria-label*="Next"]',
+
+    // Contenedores de navegación
+    '#navigation-button-down',
+    '#navigation-button-up',
+    '.ytd-shorts-player-controls[aria-label*="anterior"]',
+    '.ytd-shorts-player-controls[aria-label*="siguiente"]'
   ];
 
-  removeElements(youtubeSelectors);
+  // Función para ocultar botones de navegación
+  function hideShortsNavigationButtons() {
+    shortsNavigationSelectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(el => {
+        // Solo ocultar si es realmente un botón de navegación
+        const ariaLabel = el.getAttribute('aria-label') || '';
+        const hasNavigation = ariaLabel.toLowerCase().includes('anterior') ||
+          ariaLabel.toLowerCase().includes('siguiente') ||
+          ariaLabel.toLowerCase().includes('previous') ||
+          ariaLabel.toLowerCase().includes('next');
+
+        if (hasNavigation && !el.hasAttribute('data-blocked-by-unreel')) {
+          el.style.display = 'none !important';
+          el.style.visibility = 'hidden !important';
+          el.style.pointerEvents = 'none !important';
+          el.setAttribute('data-blocked-by-unreel', 'true');
+          console.log('🚫 Botón de navegación bloqueado:', ariaLabel);
+        }
+      });
+    });
+
+    // También buscar por estructura específica mencionada
+    const touchFeedbackElements = document.querySelectorAll('.yt-spec-touch-feedback-shape.yt-spec-touch-feedback-shape--touch-response');
+    touchFeedbackElements.forEach(el => {
+      // Verificar si contiene divs que podrían ser botones de navegación
+      const childDivs = el.querySelectorAll('div');
+      if (childDivs.length >= 2 && !el.hasAttribute('data-blocked-by-unreel')) {
+        // Verificar contexto (si está en área de Shorts)
+        const isInShortsArea = el.closest('#shorts-player') ||
+          el.closest('.ytd-shorts') ||
+          el.closest('[is-shorts]');
+
+        if (isInShortsArea) {
+          el.style.display = 'none !important';
+          el.style.visibility = 'hidden !important';
+          el.style.pointerEvents = 'none !important';
+          el.setAttribute('data-blocked-by-unreel', 'true');
+          console.log('🚫 Botón de navegación touch bloqueado');
+        }
+      }
+    });
+  }
+
+  // Ocultar botones existentes
+  hideShortsNavigationButtons();
+
+  // Configurar observer para botones dinámicos
+  youTubeShortsObserver = new MutationObserver((mutations) => {
+    let shouldCheck = false;
+    mutations.forEach((mutation) => {
+      if (mutation.addedNodes.length > 0) {
+        shouldCheck = true;
+      }
+    });
+
+    if (shouldCheck && isYouTubeShorts() && currentSettings['youtube']) {
+      setTimeout(hideShortsNavigationButtons, 100);
+    }
+  });
+
+  // Observar cambios en el contenedor de Shorts
+  const shortsContainer = document.querySelector('#shorts-player') ||
+    document.querySelector('ytd-shorts') ||
+    document.body;
+  if (shortsContainer) {
+    youTubeShortsObserver.observe(shortsContainer, {
+      childList: true,
+      subtree: true
+    });
+  }
+}
+
+// Función para restaurar navegación en Shorts
+function restoreShortsNavigation() {
+  console.log('🎬 Restaurando navegación en Shorts');
+
+  // Detener observer si existe
+  if (youTubeShortsObserver) {
+    youTubeShortsObserver.disconnect();
+    youTubeShortsObserver = null;
+  }
+
+  // Restaurar visibilidad de botones bloqueados
+  const blockedElements = document.querySelectorAll('[data-blocked-by-unreel="true"]');
+  blockedElements.forEach(el => {
+    el.style.display = '';
+    el.style.visibility = '';
+    el.style.pointerEvents = '';
+    el.removeAttribute('data-blocked-by-unreel');
+  });
 }
 
 // Configuración específica para Instagram
@@ -254,7 +594,7 @@ function handleInstagram() {
   console.log('📷 Instagram: Configurando bloqueos');
 
   // Solo bloquear scroll si está habilitado Y estamos en la URL correcta
-  if (currentSettings['instagram-scroll'] && shouldBlockScroll()) {
+  if (currentSettings['instagram'] && shouldBlockScroll()) {
     blockVerticalScroll();
   } else {
     // Si no debe bloquear, limpiar listeners previos
@@ -262,7 +602,7 @@ function handleInstagram() {
   }
 
   // Limpiar elementos de Reels si está habilitado
-  if (currentSettings['instagram-reels']) {
+  if (currentSettings['instagram']) {
     removeInstagramElements();
   }
 }
@@ -295,7 +635,7 @@ function handleX() {
   console.log('🐦 X: Configurando bloqueos');
 
   // Solo bloquear scroll si está habilitado Y estamos en la URL correcta
-  if (currentSettings['x-scroll'] && shouldBlockScroll()) {
+  if (currentSettings['x'] && shouldBlockScroll()) {
     blockVerticalScroll();
   } else {
     // Si no debe bloquear, limpiar listeners previos

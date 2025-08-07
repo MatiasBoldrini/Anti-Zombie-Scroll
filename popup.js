@@ -1,6 +1,7 @@
 // Configuraciones por defecto - simplificadas
 const DEFAULT_SETTINGS = {
     'youtube': true,
+    'youtube-hide-feed': false,
     'instagram': true,
     'x': true
 };
@@ -82,6 +83,33 @@ async function handleSwitchToggle(event) {
     if (!feature) return;
 
     const isCurrentlyActive = switchElement.classList.contains('active');
+
+    // Funciones que NO requieren verificación (solo toggle directo)
+    const noVerificationFeatures = ['youtube-hide-feed'];
+
+    // Si es una función que no requiere verificación, hacer toggle directo
+    if (noVerificationFeatures.includes(feature)) {
+        try {
+            const newValue = !isCurrentlyActive;
+            if (newValue) {
+                switchElement.classList.add('active');
+            } else {
+                switchElement.classList.remove('active');
+            }
+            await saveFeatureSetting(feature, newValue);
+            await notifyContentScripts(feature, newValue);
+            console.log(`${feature} ${newValue ? 'activado' : 'desactivado'}`);
+        } catch (error) {
+            console.error('Error al guardar configuración:', error);
+            // Revertir el cambio visual
+            if (isCurrentlyActive) {
+                switchElement.classList.add('active');
+            } else {
+                switchElement.classList.remove('active');
+            }
+        }
+        return;
+    }
 
     // Si está activado y el usuario quiere desactivarlo, mostrar modal de verificación
     if (isCurrentlyActive) {
@@ -194,31 +222,14 @@ async function notifyContentScripts(feature, isActive) {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
         if (tab) {
-            // Mapear las características simplificadas a las originales
-            let features = [];
-
-            switch (feature) {
-                case 'youtube':
-                    features = ['youtube-scroll', 'youtube-shorts', 'youtube-shorts-nav'];
-                    break;
-                case 'instagram':
-                    features = ['instagram-scroll', 'instagram-reels'];
-                    break;
-                case 'x':
-                    features = ['x-scroll'];
-                    break;
-            }
-
-            // Enviar mensaje para cada característica mapeada
-            for (const mappedFeature of features) {
-                chrome.tabs.sendMessage(tab.id, {
-                    type: 'SETTING_CHANGED',
-                    feature: mappedFeature,
-                    value: isActive
-                }).catch(error => {
-                    console.log('No se pudo enviar mensaje al tab:', error.message);
-                });
-            }
+            // Enviar mensaje directamente con la característica simplificada
+            chrome.tabs.sendMessage(tab.id, {
+                type: 'SETTING_CHANGED',
+                feature: feature,
+                value: isActive
+            }).catch(error => {
+                console.log('No se pudo enviar mensaje al tab:', error.message);
+            });
         }
     } catch (error) {
         console.log('Error al notificar content script:', error);
