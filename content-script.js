@@ -262,8 +262,12 @@ function handleYouTube() {
     }
   }
 
-  // Nota: El feed ahora se maneja con CSS directo desde el popup
-  // La funcionalidad "ocultar feed" ya no se maneja aquí
+  // Manejar ocultar/mostrar feed de YouTube
+  if (currentSettings['youtube-hide-feed']) {
+    hideYouTubeFeed();
+  } else {
+    showYouTubeFeed();
+  }
 }
 
 // Función para ocultar elementos de Shorts de YouTube
@@ -551,7 +555,43 @@ function handleX() {
   }
 }
 
+// Función para ocultar el feed de YouTube
+function hideYouTubeFeed() {
+  console.log('🎬 Ocultando feed de YouTube');
 
+  // Crear o actualizar el estilo CSS
+  let styleElement = document.getElementById('unreel-feed-hide');
+  if (!styleElement) {
+    styleElement = document.createElement('style');
+    styleElement.id = 'unreel-feed-hide';
+    document.head.appendChild(styleElement);
+  }
+
+  styleElement.textContent = `
+    /* Ocultar feed de YouTube */
+    #contents {
+      display: none !important;
+    }
+    
+    /* Selectores adicionales para compatibilidad */
+    ytd-rich-grid-renderer #contents,
+    .ytd-rich-grid-renderer #contents,
+    div#primary ytd-rich-grid-renderer {
+      display: none !important;
+    }
+  `;
+}
+
+// Función para mostrar el feed de YouTube
+function showYouTubeFeed() {
+  console.log('🎬 Mostrando feed de YouTube');
+
+  // Remover el estilo CSS
+  const styleElement = document.getElementById('unreel-feed-hide');
+  if (styleElement) {
+    styleElement.remove();
+  }
+}
 
 // 🚀 Inicialización principal SIMPLE
 async function init() {
